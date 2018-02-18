@@ -1,4 +1,4 @@
-pragma solidity ^0.4.19;
+pragma solidity ^0.4.0;
 
 import "./oraclizeAPI_0.4.sol";
 
@@ -11,20 +11,22 @@ contract USDOracle is usingOraclize {
   // Price in cents as returned by the gdax api
   // GDAX is an fdic insured US based exchange
   // https://www.gdax.com/trade/ETH-USD
-  uint256 price;
-  uint lastUpdated = 0;
+  uint256 public price;
+  uint public lastUpdated = 0;
   // Price is valid for 1 hour
   uint public priceExpirationInterval = 21600;
   address owner;
+  string public datasource = "json(https://api.gdax.com/products/ETH-USD/ticker).price";
+  uint256 public updateCost;
 
   function USDOracle() public {
     owner = msg.sender;
-    update();
+    oraclize_query("URL", datasource);
   }
 
-  function update() payable {
-    require(msg.value >= usdToWei(1));
-    oraclize_query("URL","json(https://api.gdax.com/products/ETH-USD/ticker).price");
+  function update() public payable {
+    require(msg.value >= updateCost);
+    oraclize_query("URL", datasource);
   }
 
   function usdToWei(uint _usd) public constant returns (uint256) {
@@ -43,6 +45,7 @@ contract USDOracle is usingOraclize {
     require(msg.sender == oraclize_cbAddress());
     price = parseInt(_result, 2);
     lastUpdated = block.timestamp;
+    updateCost = usdToWei(1);
   }
 
   function withdraw(address _to) public {
