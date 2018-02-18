@@ -3,7 +3,7 @@ pragma solidity ^0.4.19;
 import "./oraclizeAPI_0.4.sol";
 
 interface ERC20Contract {
-  transfer(address _to, uint256 _value) returns (bool success);
+  function transfer(address _to, uint256 _value) returns (bool success);
 }
 
 contract USDOracle is usingOraclize {
