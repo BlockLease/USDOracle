@@ -54,9 +54,9 @@ contract USDOracle is usingOraclize {
    * For withdrawing any tokens sent to this address
    *
    **/
-  function transferERC20(address tokenAddress, address to, uint256 value) {
+  function transferERC20(address _tokenAddress, address _to, uint256 _value) {
     require(msg.sender == owner);
-    ERC20Contract(tokenAddress).transfer(to, value);
+    ERC20Contract(_tokenAddress).transfer(_to, _value);
   }
 
 }
