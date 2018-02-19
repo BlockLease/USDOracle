@@ -1,6 +1,6 @@
-pragma solidity ^0.4.0;
+pragma solidity ^0.4.18;
 
-import "./oraclizeAPI_0.4.sol";
+import "./oraclizeAPI_0.5.sol";
 
 interface ERC20Contract {
   function transfer(address _to, uint256 _value) returns (bool success);
@@ -16,21 +16,17 @@ contract USDOracle is usingOraclize {
   // Price is valid for 1 hour
   uint public priceExpirationInterval = 21600;
   address owner;
-  string public datasource = "json(https://api.gdax.com/products/ETH-USD/ticker).price";
-  uint256 public updateCost;
 
   function USDOracle() public {
     owner = msg.sender;
-    oraclize_query("URL", datasource);
+    oraclize_query("URL", "json(https://api.gdax.com/products/ETH-USD/ticker).price");
   }
 
-  function update() public payable {
-    require(msg.value >= updateCost);
-    oraclize_query("URL", datasource);
-  }
+  function () payable public { }
 
-  function usdToWei(uint _usd) public constant returns (uint256) {
-    return 10**18 / getPrice() * _usd * 100;
+  function update() payable public {
+    require(msg.value >= updateCost());
+    oraclize_query("URL", "json(https://api.gdax.com/products/ETH-USD/ticker).price");
   }
 
   function getPrice() public constant returns (uint256) {
@@ -41,11 +37,18 @@ contract USDOracle is usingOraclize {
     return block.timestamp > (lastUpdated + priceExpirationInterval);
   }
 
+  function updateCost() public constant returns (uint256) {
+    return usdToWei(1);
+  }
+
+  function usdToWei(uint _usd) public constant returns (uint256) {
+    return 10**18 / getPrice() * _usd * 100;
+  }
+
   function __callback(bytes32 _myid, string _result) public {
     require(msg.sender == oraclize_cbAddress());
     price = parseInt(_result, 2);
     lastUpdated = block.timestamp;
-    updateCost = usdToWei(1);
   }
 
   function withdraw(address _to) public {
