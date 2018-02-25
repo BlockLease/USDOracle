@@ -62,13 +62,12 @@ contract USDOracle is usingOraclize {
     );
     if (oraclize_getPrice("URL") > this.balance) {
       Log("Oracle needs funds");
-      return;
     } else if (queryQueued) {
       Log("Oracle query already queued");
-      return;
+    } else {
+      queryQueued = true;
+      oraclize_query(_delay, "URL", "json(https://api.gdax.com/products/ETH-USD/ticker).price");
     }
-    queryQueued = true;
-    oraclize_query(_delay, "URL", "json(https://api.gdax.com/products/ETH-USD/ticker).price");
   }
 
   /**
@@ -79,6 +78,7 @@ contract USDOracle is usingOraclize {
     queryQueued = false;
     price = parseInt(_result, 2);
     lastUpdated = block.timestamp;
+    Updated();
     update(delay);
   }
 
