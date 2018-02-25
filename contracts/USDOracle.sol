@@ -14,6 +14,7 @@ contract USDOracle is usingOraclize {
   uint256 public price;
   uint256 public lastUpdated;
   mapping (address => bool) public operators;
+  uint public delay;
 
   event Log(string message);
   event Updated();
@@ -21,11 +22,17 @@ contract USDOracle is usingOraclize {
   function USDOracle() public {
     operators[msg.sender] = true;
     operators[address(0xddeC6C333538fCD3de7cfB56D6beed7Fd8dEE604)] = true;
-    oraclize_query("URL", "json(https://api.gdax.com/products/ETH-USD/ticker).price");
+    // Try to peg to 1 hour updates
+    delay = 60 * 60;
+    update(0);
   }
 
   function () payable public {
     update(0);
+  }
+
+  function priceNeedsUpdate() public constant returns (bool) {
+    return block.timestamp > lastUpdated + delay;
   }
 
   function update(uint _delay) payable public {
@@ -49,13 +56,12 @@ contract USDOracle is usingOraclize {
   function __callback(bytes32, string _result) public {
     require(msg.sender == oraclize_cbAddress());
     price = parseInt(_result, 2);
-    // Try to peg to 1 hour
-    uint _delay = 60 * 60;
+    uint _delay = delay;
     if (
         block.timestamp - lastUpdated < _delay &&
         block.timestamp - lastUpdated >= 0
     ) {
-        _delay = block.timestamp - lastUpdated;
+        _delay = delay - (block.timestamp - lastUpdated);
     }
     lastUpdated = block.timestamp;
     update(_delay);
