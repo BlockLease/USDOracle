@@ -42,7 +42,6 @@ contract USDOracle is usingOraclize {
    * Funds cannot be withdrawn.
    **/
   function () payable public {
-    require(msg.value >= usdToWei(1));
     update(0);
   }
 
@@ -68,8 +67,8 @@ contract USDOracle is usingOraclize {
       Log("Oracle query already queued");
       return;
     }
-    oraclize_query(_delay, "URL", "json(https://api.gdax.com/products/ETH-USD/ticker).price");
     queryQueued = true;
+    oraclize_query(_delay, "URL", "json(https://api.gdax.com/products/ETH-USD/ticker).price");
   }
 
   /**
