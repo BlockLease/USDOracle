@@ -49,7 +49,8 @@ contract USDOracle is usingOraclize {
   function __callback(bytes32, string _result) public {
     require(msg.sender == oraclize_cbAddress());
     price = parseInt(_result, 2);
-    uint _delay = 60 * 30;
+    // Try to peg to 1 hour
+    uint _delay = 60 * 60;
     if (
         block.timestamp - lastUpdated < _delay &&
         block.timestamp - lastUpdated >= 0
