@@ -32,7 +32,8 @@ contract USDOracle is usingOraclize {
   }
 
   function priceNeedsUpdate() public constant returns (bool) {
-    return block.timestamp > lastUpdated + delay;
+    // Add a 1% buffer for transaction time to prevent interruption of service
+    return block.timestamp > lastUpdated + delay + (delay / 100);
   }
 
   function update(uint _delay) payable public {
@@ -61,7 +62,7 @@ contract USDOracle is usingOraclize {
         block.timestamp - lastUpdated < _delay &&
         block.timestamp - lastUpdated >= 0
     ) {
-        _delay = delay - (block.timestamp - lastUpdated);
+      _delay = delay - (block.timestamp - lastUpdated);
     }
     lastUpdated = block.timestamp;
     update(_delay);
