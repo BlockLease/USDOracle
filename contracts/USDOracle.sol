@@ -3,7 +3,7 @@ pragma solidity ^0.4.18;
 import "./oraclizeAPI_0.5.sol";
 
 interface ERC20Contract {
-  function transfer(address _to, uint256 _value) returns (bool success);
+  function transfer(address _to, uint256 _value) external returns (bool);
 }
 
 contract USDOracle is usingOraclize {
@@ -12,56 +12,61 @@ contract USDOracle is usingOraclize {
   // GDAX is an fdic insured US based exchange
   // https://www.gdax.com/trade/ETH-USD
   uint256 public price;
-  uint public lastUpdated = 0;
-  // Price is valid for 1 hour
-  uint public priceExpirationInterval = 21600;
-  address owner;
+  uint256 public lastUpdated;
+  mapping (address => bool) public operators;
+  bool public priceNeedsUpdate;
+
+  event Log(string message);
+  event Updated();
 
   function USDOracle() public {
-    owner = msg.sender;
+    operators[msg.sender] = true;
+    operators[oraclize_cbAddress()] = true;
+    priceNeedsUpdate = true;
     oraclize_query("URL", "json(https://api.gdax.com/products/ETH-USD/ticker).price");
   }
 
   function () payable public { }
 
   function update() payable public {
-    require(msg.value >= updateCost());
-    oraclize_query("URL", "json(https://api.gdax.com/products/ETH-USD/ticker).price");
+    require(operators[msg.sender]);
+    if (oraclize_getPrice("URL") > this.balance) {
+      Log("Oracle needs funds");
+      priceNeedsUpdate = true;
+      return;
+    }
+    oraclize_query(60 * 30, "URL", "json(https://api.gdax.com/products/ETH-USD/ticker).price");
   }
 
   function getPrice() public constant returns (uint256) {
     return price;
   }
 
-  function priceNeedsUpdate() public constant returns (bool) {
-    return block.timestamp > (lastUpdated + priceExpirationInterval);
-  }
-
-  function updateCost() public constant returns (uint256) {
-    return usdToWei(1);
-  }
-
   function usdToWei(uint _usd) public constant returns (uint256) {
     return 10**18 / getPrice() * _usd * 100;
   }
 
-  function __callback(bytes32 _myid, string _result) public {
+  function __callback(bytes32, string _result) public {
     require(msg.sender == oraclize_cbAddress());
     price = parseInt(_result, 2);
     lastUpdated = block.timestamp;
-  }
+    Updated();
+    priceNeedsUpdate = false;
 
-  function withdraw(address _to) public {
-    require(msg.sender == owner);
-    _to.transfer(this.balance);
+    // Update automatically
+    update();
   }
 
   /**
    * For withdrawing any tokens sent to this address
    *
    **/
-  function transferERC20(address _tokenAddress, address _to, uint256 _value) {
-    require(msg.sender == owner);
+  function transferERC20(
+    address _tokenAddress,
+    address _to,
+    uint256 _value
+  ) public {
+    require(operators[msg.sender] && msg.sender != oraclize_cbAddress());
     ERC20Contract(_tokenAddress).transfer(_to, _value);
   }
 
