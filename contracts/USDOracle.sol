@@ -32,7 +32,7 @@ contract USDOracle is usingOraclize {
   function USDOracle() public {
     operators[msg.sender] = true;
     // Try to peg to 1 hour updates
-    delay = 60 * 5;
+    delay = 60 * 60;
     update(0);
   }
 
