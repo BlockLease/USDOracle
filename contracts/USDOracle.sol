@@ -8,9 +8,10 @@ interface ERC20Contract {
 
 contract USDOracle is usingOraclize {
 
-  // Price in cents as returned by the gdax api
-  // GDAX is an fdic insured US based exchange
-  // https://www.gdax.com/trade/ETH-USD
+  /**
+   * Price in cents as returned by the gdax api
+   * https://www.gdax.com/trade/ETH-USD
+   **/
   uint256 public price;
   uint256 public lastUpdated;
   mapping (address => bool) public operators;
@@ -24,7 +25,7 @@ contract USDOracle is usingOraclize {
   function USDOracle() public {
     operators[msg.sender] = true;
     // Try to peg to 1 hour updates
-    delay = 60 * 60;
+    delay = 60 * 5;
     update(0);
   }
 
@@ -33,10 +34,22 @@ contract USDOracle is usingOraclize {
   }
 
   function priceNeedsUpdate() public constant returns (bool) {
-    // Add a 1% buffer for transaction time to prevent interruption of service
-    return block.timestamp > lastUpdated + delay + (delay / 100);
+    /**
+     * Add a 2 minute buffer to prevent errors in dependant contracts in times
+     * of network congestion
+     **/
+    return block.timestamp > lastUpdated + delay + 120;
   }
 
+  /**
+   * Schedules an update _delay seconds in the future.
+   *
+   * This function is a no-op if queryQueued is true to prevent excessive use
+   * of contract eth.
+   *
+   * This function is a no-op if the contract balance is not sufficient to
+   * schedule the URL request.
+   **/
   function update(uint _delay) payable public {
     require(
       operators[msg.sender] ||
@@ -63,15 +76,8 @@ contract USDOracle is usingOraclize {
     require(msg.sender == oraclize_cbAddress());
     queryQueued = false;
     price = parseInt(_result, 2);
-    uint _delay = delay;
-    if (
-        block.timestamp - lastUpdated < _delay &&
-        block.timestamp - lastUpdated >= 0
-    ) {
-      _delay = delay - (block.timestamp - lastUpdated);
-    }
     lastUpdated = block.timestamp;
-    update(_delay);
+    update(delay);
   }
 
   function addOperator(address _operator) public {
