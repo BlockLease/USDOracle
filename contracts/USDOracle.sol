@@ -28,14 +28,14 @@ contract USDOracle is usingOraclize {
 
   function () payable public { }
 
-  function update() payable public {
+  function update(uint _delay) payable public {
     require(operators[msg.sender]);
     if (oraclize_getPrice("URL") > this.balance) {
       Log("Oracle needs funds");
       priceNeedsUpdate = true;
       return;
     }
-    oraclize_query(60 * 30, "URL", "json(https://api.gdax.com/products/ETH-USD/ticker).price");
+    oraclize_query(_delay, "URL", "json(https://api.gdax.com/products/ETH-USD/ticker).price");
   }
 
   function getPrice() public constant returns (uint256) {
@@ -49,19 +49,22 @@ contract USDOracle is usingOraclize {
   function __callback(bytes32, string _result) public {
     require(msg.sender == oraclize_cbAddress());
     price = parseInt(_result, 2);
+    uint _delay = 60 * 30;
+    if (
+        block.timestamp - lastUpdated < _delay &&
+        block.timestamp - lastUpdated >= 0
+    ) {
+        _delay = block.timestamp - lastUpdated;
+    }
     lastUpdated = block.timestamp;
-    Updated();
-    priceNeedsUpdate = false;
-
-    // Update automatically
-    update();
+    update(_delay);
   }
 
   /**
    * For withdrawing any tokens sent to this address
    *
    **/
-  function transferERC20(
+  function withdrawERC20(
     address _tokenAddress,
     address _to,
     uint256 _value
