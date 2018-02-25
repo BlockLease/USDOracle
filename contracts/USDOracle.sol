@@ -16,12 +16,13 @@ contract USDOracle is usingOraclize {
   mapping (address => bool) public operators;
   uint public delay;
 
+  bool public queryQueued;
+
   event Log(string message);
   event Updated();
 
   function USDOracle() public {
     operators[msg.sender] = true;
-    operators[address(0xddeC6C333538fCD3de7cfB56D6beed7Fd8dEE604)] = true;
     // Try to peg to 1 hour updates
     delay = 60 * 60;
     update(0);
@@ -45,8 +46,12 @@ contract USDOracle is usingOraclize {
     if (oraclize_getPrice("URL") > this.balance) {
       Log("Oracle needs funds");
       return;
+    } else if (queryQueued) {
+      Log("Oracle query already queued");
+      return;
     }
     oraclize_query(_delay, "URL", "json(https://api.gdax.com/products/ETH-USD/ticker).price");
+    queryQueued = true;
   }
 
   function usdToWei(uint _usd) public constant returns (uint256) {
@@ -56,6 +61,7 @@ contract USDOracle is usingOraclize {
 
   function __callback(bytes32, string _result) public {
     require(msg.sender == oraclize_cbAddress());
+    queryQueued = false;
     price = parseInt(_result, 2);
     uint _delay = delay;
     if (
