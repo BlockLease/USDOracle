@@ -37,11 +37,12 @@ contract USDOracle is usingOraclize {
   }
 
   /**
-   * Add funds to the oracle.
+   * Add funds to the oracle. Minimum amount is $1 at current exchange rate.
    *
    * Funds cannot be withdrawn.
    **/
   function () payable public {
+    require(msg.value >= usdToWei(1));
     update(0);
   }
 
@@ -58,8 +59,7 @@ contract USDOracle is usingOraclize {
   function update(uint _delay) public {
     require(
       operators[msg.sender] ||
-      msg.sender == oraclize_cbAddress() ||
-      msg.value >= usdToWei(1)
+      msg.sender == oraclize_cbAddress()
     );
     if (oraclize_getPrice("URL") > this.balance) {
       Log("Oracle needs funds");
