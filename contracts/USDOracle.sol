@@ -22,6 +22,13 @@ contract USDOracle is usingOraclize {
   event Log(string message);
   event Updated();
 
+  /**
+   * Initialize the oracle and make the contract creator the first operator.
+   *
+   * Set the delay and call the first update.
+   *
+   * Funds need to be supplied for subsequent operation.
+   **/
   function USDOracle() public {
     operators[msg.sender] = true;
     // Try to peg to 1 hour updates
@@ -29,20 +36,18 @@ contract USDOracle is usingOraclize {
     update(0);
   }
 
+  /**
+   * Add funds to the oracle.
+   *
+   * Funds cannot be withdrawn.
+   **/
   function () payable public {
     update(0);
   }
 
-  function priceNeedsUpdate() public constant returns (bool) {
-    /**
-     * Add a 2 minute buffer to prevent errors in dependant contracts in times
-     * of network congestion
-     **/
-    return block.timestamp > lastUpdated + delay + 120;
-  }
-
   /**
-   * Schedules an update _delay seconds in the future.
+   * Schedules an update _delay seconds in the future. This function is
+   * idempotent.
    *
    * This function is a no-op if queryQueued is true to prevent excessive use
    * of contract eth.
@@ -50,7 +55,7 @@ contract USDOracle is usingOraclize {
    * This function is a no-op if the contract balance is not sufficient to
    * schedule the URL request.
    **/
-  function update(uint _delay) payable public {
+  function update(uint _delay) public {
     require(
       operators[msg.sender] ||
       msg.sender == oraclize_cbAddress() ||
@@ -67,11 +72,9 @@ contract USDOracle is usingOraclize {
     queryQueued = true;
   }
 
-  function usdToWei(uint _usd) public constant returns (uint256) {
-    if (price == 0 || _usd == 0) return 0; // Prevent divide by 0
-    return 10**18 / price * _usd * 100;
-  }
-
+  /**
+   * Oraclize callback
+   **/
   function __callback(bytes32, string _result) public {
     require(msg.sender == oraclize_cbAddress());
     queryQueued = false;
@@ -80,26 +83,50 @@ contract USDOracle is usingOraclize {
     update(delay);
   }
 
-  function addOperator(address _operator) public {
+  /**
+   * A boolean for use in other contracts to halt execution if the oracle
+   * becomes at of sync by (delay + 120) seconds.
+   *
+   * Throwing based on this function should be safe as the 120 second buffer
+   * accounts for network congestion so it should always be true unless the
+   * oracle is unfunded.
+   **/
+  function priceNeedsUpdate() public constant returns (bool) {
+    return block.timestamp > lastUpdated + delay + 120;
+  }
+
+  /**
+   * Helper function for working with USD
+   **/
+  function usdToWei(uint _usd) public constant returns (uint256) {
+    if (price == 0 || _usd == 0) return 0; // Prevent divide by 0
+    return 10**18 / price * _usd * 100;
+  }
+
+  /**
+   * Administration, ensure a cold stored key is kept as an operator.
+   **/
+  modifier operator() {
     require(operators[msg.sender]);
+    _;
+  }
+
+  function addOperator(address _operator) public operator {
     operators[_operator] = true;
   }
 
-  function removeOperator(address _operator) public {
-    require(operators[msg.sender]);
+  function removeOperator(address _operator) public operator {
     operators[_operator] = false;
   }
 
   /**
-   * For withdrawing any tokens sent to this address
-   *
+   * For withdrawing any ERC20's sent to this address
    **/
   function withdrawERC20(
     address _tokenAddress,
     address _to,
     uint256 _value
-  ) public {
-    require(operators[msg.sender]);
+  ) public operator {
     ERC20Contract(_tokenAddress).transfer(_to, _value);
   }
 
