@@ -14,36 +14,36 @@ contract USDOracle is usingOraclize {
   uint256 public price;
   uint256 public lastUpdated;
   mapping (address => bool) public operators;
-  bool public priceNeedsUpdate;
 
   event Log(string message);
   event Updated();
 
   function USDOracle() public {
     operators[msg.sender] = true;
-    operators[oraclize_cbAddress()] = true;
-    priceNeedsUpdate = true;
+    operators[address(0xddeC6C333538fCD3de7cfB56D6beed7Fd8dEE604)] = true;
     oraclize_query("URL", "json(https://api.gdax.com/products/ETH-USD/ticker).price");
   }
 
-  function () payable public { }
+  function () payable public {
+    update(0);
+  }
 
   function update(uint _delay) payable public {
-    require(operators[msg.sender]);
+    require(
+      operators[msg.sender] ||
+      msg.sender == oraclize_cbAddress() ||
+      msg.value >= usdToWei(1)
+    );
     if (oraclize_getPrice("URL") > this.balance) {
       Log("Oracle needs funds");
-      priceNeedsUpdate = true;
       return;
     }
     oraclize_query(_delay, "URL", "json(https://api.gdax.com/products/ETH-USD/ticker).price");
   }
 
-  function getPrice() public constant returns (uint256) {
-    return price;
-  }
-
   function usdToWei(uint _usd) public constant returns (uint256) {
-    return 10**18 / getPrice() * _usd * 100;
+    if (price == 0 || _usd == 0) return 0; // Prevent divide by 0
+    return 10**18 / price * _usd * 100;
   }
 
   function __callback(bytes32, string _result) public {
@@ -61,6 +61,16 @@ contract USDOracle is usingOraclize {
     update(_delay);
   }
 
+  function addOperator(address _operator) public {
+    require(operators[msg.sender]);
+    operators[_operator] = true;
+  }
+
+  function removeOperator(address _operator) public {
+    require(operators[msg.sender]);
+    operators[_operator] = false;
+  }
+
   /**
    * For withdrawing any tokens sent to this address
    *
@@ -70,7 +80,7 @@ contract USDOracle is usingOraclize {
     address _to,
     uint256 _value
   ) public {
-    require(operators[msg.sender] && msg.sender != oraclize_cbAddress());
+    require(operators[msg.sender]);
     ERC20Contract(_tokenAddress).transfer(_to, _value);
   }
 
