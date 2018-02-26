@@ -56,14 +56,10 @@ contract USDOracle is usingOraclize {
    * schedule the URL request.
    **/
   function update(uint _delay) public {
-    require(
-      operators[msg.sender] ||
-      msg.sender == oraclize_cbAddress()
-    );
-    if (oraclize_getPrice("URL") > this.balance) {
-      Log("Oracle needs funds");
-    } else if (queryQueued) {
+    if (queryQueued) {
       Log("Oracle query already queued");
+    } else if (oraclize_getPrice("URL") > this.balance) {
+      Log("Oracle needs funds");
     } else {
       queryQueued = true;
       oraclize_query(_delay, "URL", "json(https://api.gdax.com/products/ETH-USD/ticker).price");
