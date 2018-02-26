@@ -41,7 +41,7 @@ contract USDOracle is usingOraclize {
    *
    * Funds cannot be withdrawn.
    **/
-  function () payable public {
+  function pay() payable public {
     update(0);
   }
 
@@ -58,21 +58,23 @@ contract USDOracle is usingOraclize {
   function update(uint _delay) public {
     if (queryQueued) {
       Log("Oracle query already queued");
-    } else if (oraclize_getPrice("URL") > this.balance) {
-      Log("Oracle needs funds");
-    } else {
-      queryQueued = true;
-      oraclize_query(_delay, "URL", "json(https://api.gdax.com/products/ETH-USD/ticker).price");
+      return;
     }
+    if (oraclize_getPrice("URL") > this.balance) {
+      Log("Oracle needs funds");
+      return;
+    }
+    queryQueued = true;
+    oraclize_query(_delay, "URL", "json(https://api.gdax.com/products/ETH-USD/ticker).price");
   }
 
   /**
    * Oraclize callback
    **/
-  function __callback(bytes32, string _result) public {
+  function __callback(bytes32, string result) public {
     require(msg.sender == oraclize_cbAddress());
     queryQueued = false;
-    price = parseInt(_result, 2);
+    price = parseInt(result, 2);
     lastUpdated = block.timestamp;
     Updated();
     update(delay);
