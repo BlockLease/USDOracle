@@ -6,4 +6,4 @@ USD exchange rates are pulled directly from the GDAX realtime trading API and ar
 
 ## Addresses
 
-Rinkeby: [0x35bda36ab2d658abe60092b5792daad00ab00206](https://rinkeby.etherscan.io/address/0x35bda36ab2d658abe60092b5792daad00ab00206)
+Rinkeby: [0x6f40727267Cd0af73663130A65515d3229891eA0](https://rinkeby.etherscan.io/address/0x6f40727267Cd0af73663130A65515d3229891eA0)
